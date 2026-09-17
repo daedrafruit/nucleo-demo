@@ -1,7 +1,7 @@
-all:
+make:
 	pio -f -c vim run
 
-upload:
+run:
 	pio -f -c vim run --target upload
 
 clean:
