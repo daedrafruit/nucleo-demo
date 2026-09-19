@@ -1,3 +1,5 @@
 venv/
 .pio/
 compile_commands.json
+EWARM/
+.mxproject
