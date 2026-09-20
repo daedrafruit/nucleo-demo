@@ -3,3 +3,4 @@ venv/
 compile_commands.json
 EWARM/
 .mxproject
+.ccls

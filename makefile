@@ -15,3 +15,8 @@ uploadfs:
 
 update:
 	pio -f -c vim update
+
+db:
+	pio run -t compiledb
+	cp compile_commands.json ~/.platformio/packages/framework-stm32cubef4
+
