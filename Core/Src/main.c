@@ -21,8 +21,10 @@
 #include "stm32f446xx.h"
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_gpio.h"
+#include "stm32f4xx_hal_tim.h"
 #include "tim.h"
 #include "gpio.h"
+#include <stdint.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -97,12 +99,17 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  int pulse = 0;
+  int diff = 1;
   while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_1);
-    HAL_Delay(1000);
+    HAL_Delay(2);
+    TIM2->CCR1 = pulse;    
+    pulse += diff;    
+    if (pulse >= 512 || pulse <= 0) diff *= -1;    
   }
   /* USER CODE END 3 */
 }
