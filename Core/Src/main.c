@@ -100,16 +100,17 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  int pulse = 0;
-  int diff = 1;
+  int pulse = 42000 - 1;
+  int diff = 100;
   while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    HAL_Delay(2);
-    TIM2->CCR1 = pulse;    
+    HAL_Delay(1);
+    //TIM2->CCR1 = pulse;    
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pulse);
     pulse += diff;    
-    if (pulse >= 512 || pulse <= 0) diff *= -1;    
+    if (pulse >= 210000 - 1)  pulse = 42000 - 1;    
   }
   /* USER CODE END 3 */
 }
