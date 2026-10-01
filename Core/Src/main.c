@@ -18,16 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stm32f446xx.h"
-#include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_gpio.h"
-#include "stm32f4xx_hal_tim.h"
-#include "tim.h"
+#include "spi.h"
+#include "usart.h"
 #include "gpio.h"
-#include <stdint.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdint.h>
+#include <stdio.h>
 
 /* USER CODE END Includes */
 
@@ -60,6 +58,9 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
 
 /* USER CODE END 0 */
 
@@ -92,25 +93,54 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_TIM2_Init();
+  MX_SPI1_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  const uint8_t CMD0[]   = {0x40, 0x00, 0x00, 0x00, 0x00, 0x95};
+  const uint8_t CMD8[]   = {0x48, 0x00, 0x00, 0x01, 0xAA, 0x87};
+  const uint8_t CMD55[]  = {0x77, 0x00, 0x00, 0x00, 0x00, 0x01};
+  const uint8_t ACMD41[] = {0x69, 0x40, 0x00, 0x00, 0x00, 0x01};
+  uint8_t ff = 0xFF;
+
+  printf("Hello, World!\n");
+
+  // power up send 80 pulses of FF with CS high
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
+  for (int i = 0; i < 10; i++) HAL_SPI_Transmit(&hspi1, &ff, 1, 100);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET);
+
+  // send CMD0
+  HAL_SPI_Transmit(&hspi1, (uint8_t *)CMD0, 6, 100);
+
+  //response will come within 0-8 cycles
+  uint8_t r1 = 0xFF;
+  for (int i = 0; i < 8 && r1 == 0xFF; i++)
+    HAL_SPI_TransmitReceive(&hspi1, &ff, &r1, 1, 100);
+
+  HAL_SPI_Transmit(&hspi1, (uint8_t *)CMD8, 6, 100);
+
+  r1 = 0xFF;
+  for (int i = 0; i < 8 && r1 == 0xFF; i++)
+    HAL_SPI_TransmitReceive(&hspi1, &ff, &r1, 1, 100);
+
+  uint64_t rx8 = 0;
+  for (int i = 0; i < 8; i++) {
+    uint8_t r;
+    HAL_SPI_TransmitReceive(&hspi1, &ff, &r, 1, 100);
+    rx8 = (rx8 << 8) | r;
+  }
+  __NOP();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  int pulse = 42000 - 1;
-  int diff = 100;
   while (1) {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    HAL_Delay(1);
-    //TIM2->CCR1 = pulse;    
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pulse);
-    pulse += diff;    
-    if (pulse >= 210000 - 1)  pulse = 42000 - 1;    
+    if (rx8 == 0x01) 
+      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
   }
   /* USER CODE END 3 */
 }
@@ -163,6 +193,10 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+int _write(int fd, char *ptr, int len) {
+    HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
+    return len;
+}
 
 /* USER CODE END 4 */
 
