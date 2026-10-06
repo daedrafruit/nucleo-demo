@@ -58,6 +58,33 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void print_r1(uint8_t r1) {
+  printf("%02X\n", r1);
+  if (r1 >> 0 & 1) printf("In Idle State\n");
+  if (r1 >> 1 & 1) printf("Erase State\n");
+  if (r1 >> 2 & 1) printf("Illegal Command\n");
+  if (r1 >> 3 & 1) printf("Com CRC Error\n");
+  if (r1 >> 4 & 1) printf("Erase Sequence Error\n");
+  if (r1 >> 5 & 1) printf("Address Error\n");
+  if (r1 >> 6 & 1) printf("Parameter Error\n");
+}
+
+void print_r7(uint32_t r7) {
+  printf("%08lX\n", (unsigned long)r7);
+
+  if (r7 >> 13 & 1) printf("PCIe 1.2V Support Accepted\n");
+
+  uint8_t volt = (r7 >> 8) & 0x0F;
+  if (volt == 0x0)      printf("Voltage Not Defined\n");
+  else if (volt == 0x1) printf("2.7-3.6V\n");
+  else if (volt == 0x2) printf("Reserved for Low Voltage Range\n");
+  else                  printf("Unknown voltage: %X\n", volt);
+}
+
+void print_r3(uint32_t r3) {
+  printf("%08lX\n", (unsigned long)r3);
+}
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
@@ -100,9 +127,8 @@ int main(void)
   const uint8_t CMD8[]   = {0x48, 0x00, 0x00, 0x01, 0xAA, 0x87};
   const uint8_t CMD55[]  = {0x77, 0x00, 0x00, 0x00, 0x00, 0x01};
   const uint8_t ACMD41[] = {0x69, 0x40, 0x00, 0x00, 0x00, 0x01};
+  const uint8_t CMD58[]  = {0x7A, 0x00, 0x00, 0x00, 0x00, 0x01};
   uint8_t ff = 0xFF;
-
-  printf("Hello, World!\n");
 
   // power up send 80 pulses of FF with CS high
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);
@@ -116,20 +142,56 @@ int main(void)
   uint8_t r1 = 0xFF;
   for (int i = 0; i < 8 && r1 == 0xFF; i++)
     HAL_SPI_TransmitReceive(&hspi1, &ff, &r1, 1, 100);
+  printf("CMD0 Response:\n");
+  print_r1(r1);
+  printf("\n");
 
   HAL_SPI_Transmit(&hspi1, (uint8_t *)CMD8, 6, 100);
 
   r1 = 0xFF;
   for (int i = 0; i < 8 && r1 == 0xFF; i++)
     HAL_SPI_TransmitReceive(&hspi1, &ff, &r1, 1, 100);
+  printf("CMD8 Response:\n");
+  print_r1(r1);
 
-  uint64_t rx8 = 0;
-  for (int i = 0; i < 8; i++) {
+  uint32_t r7 = 0;
+  for (int i = 0; i < 4; i++) {
     uint8_t r;
     HAL_SPI_TransmitReceive(&hspi1, &ff, &r, 1, 100);
-    rx8 = (rx8 << 8) | r;
+    r7 = (r7 << 8) | r;
   }
-  __NOP();
+  print_r7(r7);
+  printf("\n");
+
+  printf("Initializing...\n");
+  do {
+    HAL_SPI_Transmit(&hspi1, (uint8_t *)CMD55, 6, 100);
+    r1 = 0xFF;
+    for (int i = 0; i < 8 && r1 == 0xFF; i++)
+      HAL_SPI_TransmitReceive(&hspi1, &ff, &r1, 1, 100);
+
+    HAL_SPI_Transmit(&hspi1, (uint8_t *)ACMD41, 6, 100);
+    r1 = 0xFF;
+    for (int i = 0; i < 8 && r1 == 0xFF; i++)
+      HAL_SPI_TransmitReceive(&hspi1, &ff, &r1, 1, 100);
+
+  } while (r1 == 0x01);
+
+  HAL_SPI_Transmit(&hspi1, (uint8_t *)CMD58, 6, 100);
+  r1 = 0xFF;
+  for (int i = 0; i < 8 && r1 == 0xFF; i++)
+    HAL_SPI_TransmitReceive(&hspi1, &ff, &r1, 1, 100);
+
+  uint32_t r3 = 0;
+  for (int i = 0; i < 4; i++) {
+    uint8_t r;
+    HAL_SPI_TransmitReceive(&hspi1, &ff, &r, 1, 100);
+    r3 = (r3 << 8) | r;
+  }
+  if (r3 >> 30 & 1) printf("SDHC/SDXC Ready...\n");
+  else printf("SDSC Ready...\n");
+
+
 
   /* USER CODE END 2 */
 
@@ -139,8 +201,6 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    if (rx8 == 0x01) 
-      HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0, GPIO_PIN_SET);
   }
   /* USER CODE END 3 */
 }

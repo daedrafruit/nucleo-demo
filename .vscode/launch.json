@@ -1,0 +1,15 @@
+{
+  "configurations": [
+    {
+      "name": "pio",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/.pio/build/nucleo_f446re/firmware.elf",
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb",
+      "miDebuggerPath": "piodebuggdb",
+      "miDebuggerArgs": "--project-dir ${workspaceFolder} -x .pioinit"
+    }
+  ]
+}
+
