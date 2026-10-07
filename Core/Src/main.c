@@ -22,6 +22,8 @@
 #include "usart.h"
 #include "gpio.h"
 #include "sd.h"
+#include <stdint.h>
+#include <stdio.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -97,7 +99,15 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
+  uint8_t data[] = {0x01, 0x04, 0xFF, 0x00, 0x01, 0x01};
+
   sd_init();
+  sd_write(0, (uint8_t *)&data, 6);
+  sd_dump_block(0);
+  sd_dump_block(1);
+  sd_dump_block(2);
+  sd_dump_block(2048);
+
 
   /* USER CODE END 2 */
 

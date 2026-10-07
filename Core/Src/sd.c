@@ -75,7 +75,6 @@ static void print_r7(uint32_t r7) {
 }
 
 int sd_init(void) {
-  printf("\n\n\n\n");
   uint8_t r1;
 
   // power up: 80 clocks (10 bytes of 0xFF) with CS high
@@ -104,6 +103,97 @@ int sd_init(void) {
   uint32_t r3 = sd_read32();
   if (r3 >> 30 & 1) printf("SDHC/SDXC Ready...\n");
   else              printf("SDSC Ready...\n");
+  printf("\n");
 
+  return 0;
+}
+
+int sd_write(uint32_t address, const void* data, uint16_t length) {
+  uint8_t r1;
+  r1 = sd_cmd(24, address);
+  if (r1 != 0x00) {
+    printf("ERROR: Failed to Enter Write Mode\n");
+    return 1;
+  } else printf("Successfully Entered Write Mode...\n");
+
+  //send start block token
+  spi_xfer(0xFE);
+
+  for (uint16_t i = 0; i < 512; i++) {
+    if (i < length)
+      spi_xfer(((uint8_t*)data)[i]);
+    else
+      spi_xfer(0x00);
+  }
+
+  //dummy crc
+  spi_xfer(0xFF);
+  spi_xfer(0xFF);
+  
+  uint8_t response = spi_xfer(0xFF);
+  if ((response & 0x1F) != 0x05) {
+    return 1;
+  } else printf("Successfully Wrote Block...\n");
+
+  //wait until card is ready
+  while (spi_xfer(0xFF) == 0x00);
+
+  return 0;
+}
+
+int sd_read(uint32_t address, uint8_t* buffer, uint16_t buffer_size) {
+    uint8_t r1;
+    r1 = sd_cmd(17, address);
+    if (r1 != 0x00) {
+      printf("\nERROR: Failed to Enter Read Mode\n");
+      return 1;
+    } else printf("\nSuccessfully Entered Read Mode...\n");
+
+    // keep receiving bytes until the data token
+    while (spi_xfer(0xFF) != 0xFE);
+
+    for (uint16_t i = 0; i < 512; i++) {
+      uint8_t r_byte = spi_xfer(0xFF);
+
+      if (i < buffer_size) {
+        buffer[i] = r_byte;
+      }
+    }
+
+    //dummy crc
+    spi_xfer(0xFF);
+    spi_xfer(0xFF);
+
+    //dummy byte
+    spi_xfer(0xFF);
+
+    return 0;
+}
+
+void hexdump(const uint8_t *buffer, uint32_t length, uint32_t base) {
+  for (uint32_t offset = 0; offset < length; offset += 16) {
+    printf("%08lX  ", (unsigned long)(base + offset));
+
+    for (int i = 0; i < 16; i++) {
+      if (offset + i < length) printf("%02X ", buffer[offset + i]);
+      else               printf("   ");
+      if (i == 7) printf(" ");
+    }
+
+    printf(" |");
+    for (int i = 0; i < 16 && offset + i < length; i++) {
+      uint8_t c = buffer[offset + i];
+      printf("%c", (c >= 0x20 && c < 0x7F) ? c : '.');
+    }
+    printf("|\n");
+  }
+}
+
+int sd_dump_block(uint32_t block) {
+  static uint8_t buf[512];
+
+  if (sd_read(block, buf, sizeof(buf)) != 0) return 1;
+
+  hexdump(buf, sizeof(buf), block * 512);
   return 0;
 }
