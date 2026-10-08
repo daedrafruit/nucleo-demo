@@ -172,10 +172,6 @@ int sd_write(uint32_t address, const void* data, uint16_t length) {
 int sd_read(uint32_t address, uint8_t* buffer, uint16_t buffer_size) {
     uint8_t r1;
     r1 = sd_cmd(17, address);
-    if (r1 != 0x00) {
-      printf("\nERROR: Failed to Enter Read Mode\n");
-      return 1;
-    } else printf("\nSuccessfully Entered Read Mode...\n");
 
     // keep receiving bytes until the data token
     while (spi_xfer(0xFF) != 0xFE);

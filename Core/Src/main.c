@@ -18,15 +18,18 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "i2s.h"
 #include "spi.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
-#include "sd.h"
-#include <stdint.h>
-#include <stdio.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "sd.h"
+#include "test_audio.h"
+#include <stdint.h>
+#include <stdio.h>
 
 /* USER CODE END Includes */
 
@@ -59,7 +62,20 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+#define NUM_BLOCKS 50
 
+uint8_t block_buff[512*NUM_BLOCKS];
+uint16_t tx_data;
+int tx_index;
+int curr_block = 0;
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+  if(htim->Instance == TIM2) {
+    tx_data = ((uint16_t)block_buff[tx_index+1] << 8) | block_buff[tx_index];
+    tx_index = tx_index + 2;
+    if(tx_index>(512*NUM_BLOCKS)/2) tx_index = 0;
+    HAL_I2S_Transmit(&hi2s2, &tx_data, 1, 10);
+  }
+}
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
@@ -97,17 +113,20 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
   MX_USART2_UART_Init();
+  MX_I2S2_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-
-
   sd_init();
-  //uint8_t data[] = {0x01, 0x04, 0xFF, 0x00, 0x01, 0x01};
-  //sd_write(0, (uint8_t *)&data, 6);
-  sd_dump_block(0);
-  sd_dump_block(1);
-  sd_dump_block(2);
-  sd_dump_block(2048);
 
+  for (int i = 0; i < NUM_BLOCKS; i++) {
+    sd_read(i, block_buff+(512 * i), 512);
+  }
+
+  tx_index = 0;
+  HAL_TIM_Base_Start_IT(&htim2);
+
+  //uint8_t data[] = {0x01, 0x04, 0xFF, 0x00, 0x01, 0x01};
+  //sd_dump_block(0);
 
   /* USER CODE END 2 */
 
@@ -169,10 +188,6 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-int _write(int fd, char *ptr, int len) {
-    HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
-    return len;
-}
 
 /* USER CODE END 4 */
 
