@@ -74,6 +74,34 @@ static void print_r7(uint32_t r7) {
   else                  printf("Unknown voltage: %X\n", volt);
 }
 
+void hexdump(const uint8_t *buffer, uint32_t length, uint32_t base) {
+  for (uint32_t offset = 0; offset < length; offset += 16) {
+    printf("%08lX  ", (unsigned long)(base + offset));
+
+    for (int i = 0; i < 16; i++) {
+      if (offset + i < length) printf("%02X ", buffer[offset + i]);
+      else               printf("   ");
+      if (i == 7) printf(" ");
+    }
+
+    printf(" |");
+    for (int i = 0; i < 16 && offset + i < length; i++) {
+      uint8_t c = buffer[offset + i];
+      printf("%c", (c >= 0x20 && c < 0x7F) ? c : '.');
+    }
+    printf("|\n");
+  }
+}
+
+int sd_dump_block(uint32_t block) {
+  static uint8_t buf[512];
+
+  if (sd_read(block, buf, sizeof(buf)) != 0) return 1;
+
+  hexdump(buf, sizeof(buf), block * 512);
+  return 0;
+}
+
 int sd_init(void) {
   uint8_t r1;
 
@@ -168,32 +196,4 @@ int sd_read(uint32_t address, uint8_t* buffer, uint16_t buffer_size) {
     spi_xfer(0xFF);
 
     return 0;
-}
-
-void hexdump(const uint8_t *buffer, uint32_t length, uint32_t base) {
-  for (uint32_t offset = 0; offset < length; offset += 16) {
-    printf("%08lX  ", (unsigned long)(base + offset));
-
-    for (int i = 0; i < 16; i++) {
-      if (offset + i < length) printf("%02X ", buffer[offset + i]);
-      else               printf("   ");
-      if (i == 7) printf(" ");
-    }
-
-    printf(" |");
-    for (int i = 0; i < 16 && offset + i < length; i++) {
-      uint8_t c = buffer[offset + i];
-      printf("%c", (c >= 0x20 && c < 0x7F) ? c : '.');
-    }
-    printf("|\n");
-  }
-}
-
-int sd_dump_block(uint32_t block) {
-  static uint8_t buf[512];
-
-  if (sd_read(block, buf, sizeof(buf)) != 0) return 1;
-
-  hexdump(buf, sizeof(buf), block * 512);
-  return 0;
 }
