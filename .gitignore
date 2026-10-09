@@ -4,3 +4,6 @@ compile_commands.json
 EWARM/
 .mxproject
 .ccls
+bin/
+Core/Inc/test_audio.h
+
