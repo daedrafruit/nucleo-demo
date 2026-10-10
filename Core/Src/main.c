@@ -21,6 +21,8 @@
 #include "dma.h"
 #include "i2s.h"
 #include "spi.h"
+#include "stm32f4xx_hal.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -63,9 +65,17 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-/* USER CODE BEGIN 4 */
+int time = 0;
+int seconds = 0;
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) {
+  time++;
+  if (time >= 999) {
+    printf("%d", seconds);
+    time = 0;
+    seconds++;
+  }
 
-/* USER CODE END 4 */
+}
 
 /* USER CODE END 0 */
 
@@ -100,10 +110,12 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_SPI1_Init();
-  MX_USART2_UART_Init();
   MX_I2S2_Init();
+  MX_TIM2_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-  sd_init();
+  //sd_init();
+  HAL_TIM_Base_Start_IT(&htim2);
 
 
   /*
@@ -121,9 +133,32 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint8_t playing = 0;
+  int amen_len = sizeof(Amen_Brother_Mono_136_raw) / 2;
+  int start = 3;
+  int total = 10;
   while (1) {
-    HAL_I2S_Transmit_DMA(&hi2s2, (uint16_t *)Amen_Brother_Mono_136_raw, sizeof(Amen_Brother_Mono_136_raw) / 2);
-    HAL_Delay(5000);
+    uint8_t a_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);
+    uint8_t b_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1);
+    if (!a_on && !b_on) {
+      playing = 0;
+      continue;
+    }
+    if (playing) 
+      continue; 
+    playing = 1;
+
+    if (a_on) {
+      HAL_I2S_DMAStop(&hi2s2);
+      HAL_I2S_Transmit_DMA(&hi2s2, (uint16_t *)Amen_Brother_Mono_136_raw, amen_len);
+      HAL_Delay(100);
+    } 
+    else if (b_on) {
+      HAL_I2S_DMAStop(&hi2s2);
+      HAL_I2S_Transmit_DMA(&hi2s2, (uint16_t *)Amen_Brother_Mono_136_raw + (amen_len * start)/total, amen_len * (total - start)/total);
+      HAL_Delay(100);
+    }
+    
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -179,6 +214,10 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+int _write(int fd, char *ptr, int len) {
+    HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
+    return len;
+}
 
 /* USER CODE END 4 */
 
