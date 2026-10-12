@@ -21,7 +21,7 @@
 #include "dma.h"
 #include "i2s.h"
 #include "spi.h"
-#include "stm32f4xx_hal.h"
+#include "stm32f4xx_hal_tim.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -77,6 +77,41 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) {
 
 }
 
+int start = 3;
+int total = 10;
+void play_audio(uint16_t *audio, int len, uint8_t *playing) {
+  uint8_t a_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);
+  uint8_t b_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1);
+  if (!a_on && !b_on) {
+    *playing = 0;
+    return;
+  }
+  if (*playing) 
+    return; 
+  *playing = 1;
+
+  if (a_on) {
+    HAL_I2S_DMAStop(&hi2s2);
+    HAL_I2S_Transmit_DMA(&hi2s2, audio, len);
+    HAL_Delay(100);
+  } 
+  else if (b_on) {
+    HAL_I2S_DMAStop(&hi2s2);
+    HAL_I2S_Transmit_DMA(&hi2s2, audio + (len * start)/total, len * (total - start)/total);
+    HAL_Delay(100);
+  }
+}
+
+uint16_t pwmData[24];
+uint8_t period = 105-1;
+void send_rgb(int g, int r, int b) {
+  uint32_t data = g << 16 | r << 8 | b;
+  for (int i = 23; i >= 0; i--) {
+    if (data&(1<<i)) pwmData[i] = period * 2/3;
+    else pwmData[i] = period * 1/3;
+  }
+  HAL_TIM_PWM_Start_DMA(&htim1, TIM_CHANNEL_1, (uint32_t *)pwmData, 24);
+}
 /* USER CODE END 0 */
 
 /**
@@ -111,23 +146,12 @@ int main(void)
   MX_DMA_Init();
   MX_SPI1_Init();
   MX_I2S2_Init();
-  MX_TIM2_Init();
   MX_USART2_UART_Init();
+  MX_TIM2_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   //sd_init();
   HAL_TIM_Base_Start_IT(&htim2);
-
-
-  /*
-  for (int i = 0; i < NUM_BLOCKS; i++) {
-    sd_read(i, block_buff+(512 * i), 512);
-  }
-  */
-  //HAL_TIM_Base_Start_IT(&htim2);
-
-
-  //uint8_t data[] = {0x01, 0x04, 0xFF, 0x00, 0x01, 0x01};
-  //sd_dump_block(0);
 
   /* USER CODE END 2 */
 
@@ -135,30 +159,10 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   uint8_t playing = 0;
   int amen_len = sizeof(Amen_Brother_Mono_136_raw) / 2;
-  int start = 3;
-  int total = 10;
-  while (1) {
-    uint8_t a_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);
-    uint8_t b_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1);
-    if (!a_on && !b_on) {
-      playing = 0;
-      continue;
-    }
-    if (playing) 
-      continue; 
-    playing = 1;
 
-    if (a_on) {
-      HAL_I2S_DMAStop(&hi2s2);
-      HAL_I2S_Transmit_DMA(&hi2s2, (uint16_t *)Amen_Brother_Mono_136_raw, amen_len);
-      HAL_Delay(100);
-    } 
-    else if (b_on) {
-      HAL_I2S_DMAStop(&hi2s2);
-      HAL_I2S_Transmit_DMA(&hi2s2, (uint16_t *)Amen_Brother_Mono_136_raw + (amen_len * start)/total, amen_len * (total - start)/total);
-      HAL_Delay(100);
-    }
-    
+  while (1)
+  {
+    play_audio((uint16_t *)Amen_Brother_Mono_136_raw, amen_len, &playing);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
