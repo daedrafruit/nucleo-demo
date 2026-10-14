@@ -21,17 +21,19 @@
 #include "dma.h"
 #include "i2s.h"
 #include "spi.h"
-#include "stm32f4xx_hal_tim.h"
+#include "stm32f4xx_hal.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "sd.h"
+//#include "sd.h"
 #include "test_audio.h"
+#include "led.h"
+#include "dac.h"
 #include <stdint.h>
-#include <stdio.h>
+#include <stdlib.h>
 
 /* USER CODE END Includes */
 
@@ -65,53 +67,6 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-int time = 0;
-int seconds = 0;
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim) {
-  time++;
-  if (time >= 999) {
-    printf("%d", seconds);
-    time = 0;
-    seconds++;
-  }
-
-}
-
-int start = 3;
-int total = 10;
-void play_audio(uint16_t *audio, int len, uint8_t *playing) {
-  uint8_t a_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);
-  uint8_t b_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1);
-  if (!a_on && !b_on) {
-    *playing = 0;
-    return;
-  }
-  if (*playing) 
-    return; 
-  *playing = 1;
-
-  if (a_on) {
-    HAL_I2S_DMAStop(&hi2s2);
-    HAL_I2S_Transmit_DMA(&hi2s2, audio, len);
-    HAL_Delay(100);
-  } 
-  else if (b_on) {
-    HAL_I2S_DMAStop(&hi2s2);
-    HAL_I2S_Transmit_DMA(&hi2s2, audio + (len * start)/total, len * (total - start)/total);
-    HAL_Delay(100);
-  }
-}
-
-uint16_t pwmData[24];
-uint8_t period = 105-1;
-void send_rgb(int g, int r, int b) {
-  uint32_t data = g << 16 | r << 8 | b;
-  for (int i = 23; i >= 0; i--) {
-    if (data&(1<<i)) pwmData[i] = period * 2/3;
-    else pwmData[i] = period * 1/3;
-  }
-  HAL_TIM_PWM_Start_DMA(&htim1, TIM_CHANNEL_1, (uint32_t *)pwmData, 24);
-}
 /* USER CODE END 0 */
 
 /**
@@ -151,7 +106,6 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   //sd_init();
-  HAL_TIM_Base_Start_IT(&htim2);
 
   /* USER CODE END 2 */
 
@@ -159,10 +113,33 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   uint8_t playing = 0;
   int amen_len = sizeof(Amen_Brother_Mono_136_raw) / 2;
-
-  while (1)
-  {
+  
+  for (int i = 0; i < WIDTH; i++) set_LED(xy(i,0), 255, 0, 0);
+  int top = 15;
+  int curr = top;
+  int lane = rand() % 8;
+  while (1) {
     play_audio((uint16_t *)Amen_Brother_Mono_136_raw, amen_len, &playing);
+    if (curr >= 0) {
+      if (lane == 0)
+        set_LED(xy(lane, curr), 255, 0, 0);
+      else if (lane == 2 || lane == 4 || lane == 6)
+        set_LED(xy(lane, curr), 0, 0, 255);
+      else
+        set_LED(xy(lane, curr), 255, 255, 255);
+      if (curr != top) 
+        set_LED(xy(lane, curr+1), 0, 0, 0);
+      if (curr == 0) {
+        set_LED(xy(lane, curr), 255, 0, 0);
+        lane = rand() % 8;
+        curr = top;
+      }
+      curr--;
+    }
+
+    set_brightness(1);
+    send_LED();
+    HAL_Delay(50);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
