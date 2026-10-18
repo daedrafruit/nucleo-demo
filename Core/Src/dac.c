@@ -6,7 +6,7 @@ static int start = 3;
 static int total = 10;
 
 void play_audio(uint16_t *audio, int len, uint8_t *playing) {
-  uint8_t a_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);
+  uint8_t a_on = !(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0));
   uint8_t b_on = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_1);
   if (!a_on && !b_on) {
     *playing = 0;
