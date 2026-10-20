@@ -21,7 +21,7 @@
 #include "dma.h"
 #include "i2s.h"
 #include "spi.h"
-#include "stm32f4xx_hal.h"
+#include "stm32f446xx.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -29,9 +29,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 //#include "sd.h"
-#include "test_audio.h"
 #include "led.h"
-#include "dac.h"
+#include "input.h"
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -66,11 +65,7 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
- if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-    TIM2->CCR1 += 84000000;
-  }
-}
+
 
 /* USER CODE END 0 */
 
@@ -117,16 +112,13 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint8_t playing = 0;
-  int amen_len = sizeof(Amen_Brother_Mono_136_raw) / 2;
   
-  //for (int i = 0; i < WIDTH; i++) set_LED(xy(i,0), 255, 0, 0);
+  for (int i = 0; i < WIDTH; i++) set_LED(xy(i,0), 255, 0, 0);
   int top = 15;
   int curr = top;
   int lane = rand() % 8;
   send_LED();
   while (1) {
-    play_audio((uint16_t *)Amen_Brother_Mono_136_raw, amen_len, &playing);
 
     if (curr >= 0) {
       if (lane == 0)
@@ -146,6 +138,7 @@ int main(void)
     }
     set_brightness(1);
     send_LED();
+    read_input_buffer();
     HAL_Delay(50);
 
     /* USER CODE END WHILE */
