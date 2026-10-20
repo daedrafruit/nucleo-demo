@@ -31,8 +31,10 @@ void set_brightness(int brightness) {
 }
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
-  HAL_TIM_PWM_Stop_DMA(&htim1, TIM_CHANNEL_1);
-  data_sent_flag = 1;
+  if (htim->Instance == TIM1) {
+    HAL_TIM_PWM_Stop_DMA(&htim1, TIM_CHANNEL_1);
+    data_sent_flag = 1;
+  }
 }
 
 void send_LED() {
