@@ -1,8 +1,6 @@
 #include <stdint.h>
 
 #include "stm32f4xx_hal.h"
-#include "test_audio.h"
-#include "gpio.h"
 #include "dac.h"
 
 volatile uint16_t input_buffer[32];
@@ -32,35 +30,25 @@ uint8_t last_state[9];
 uint8_t curr_state[9];
 
 void load_input_buffer() {
+  uint32_t now = HAL_GetTick();
   for (int i = 0; i < 9; i++) {
-    curr_state[i] = ~(GPIOC->IDR) >> i & 1;
-    if (curr_state[i] != last_state[i]) {
-      last_time[i] = HAL_GetTick();
+    uint8_t curr = ~(GPIOC->IDR) >> i & 1;
+    if (curr != btn_state[i] && now - last_time[i] > debounce_delay) {
+      btn_state[i] = curr;
+      last_time[i] = now;
+      if (curr == 1)
+        enqueue(i + 1);
     }
-    if ((HAL_GetTick() - last_time[i]) > debounce_delay) {
-      if (curr_state[i] != btn_state[i]) {
-        btn_state[i] = curr_state[i];
-        if (btn_state[i] == 1)
-          enqueue(i+1);
-      }
-    }
-    last_state[i] = curr_state[i];
   }
 }
 
-uint8_t playing = 0;
-volatile int amen_len = sizeof(Amen_Brother_Mono_136_raw) / 2;
 uint16_t res;
 void read_input_buffer() {
   while(dequeue(&res)) {
     if (res > 0) {
-      play_audio((uint16_t *)Amen_Brother_Mono_136_raw, amen_len, &playing);
+      play_audio(res - 1);
     }
   }
-}
-
-void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s) {
-  if (hi2s->Instance == SPI2) playing = 0;
 }
 
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {

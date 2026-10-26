@@ -21,7 +21,6 @@
 #include "dma.h"
 #include "i2s.h"
 #include "spi.h"
-#include "stm32f446xx.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -29,10 +28,13 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 //#include "sd.h"
-#include "led.h"
-#include "input.h"
 #include <stdint.h>
 #include <stdlib.h>
+
+#include "led.h"
+#include "input.h"
+#include "dac.h"
+#include "sd.h"
 
 /* USER CODE END Includes */
 
@@ -65,7 +67,6 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
 
 /* USER CODE END 0 */
 
@@ -105,41 +106,24 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  //sd_init();
+  sd_init();
   HAL_TIM_OC_Start_IT(&htim2, TIM_CHANNEL_1);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  //HAL_I2S_Transmit_DMA(&hi2s2, (uint16_t *)Amen_Brother_Mono_136_raw, amen_len);
+
+
+  //sd_dump_block(0);
   
-  for (int i = 0; i < WIDTH; i++) set_LED(xy(i,0), 255, 0, 0);
-  int top = 15;
-  int curr = top;
-  int lane = rand() % 8;
-  send_LED();
+  audio_init();
+  audio_set_rate(16000);
   while (1) {
 
-    if (curr >= 0) {
-      if (lane == 0)
-        set_LED(xy(lane, curr), 255, 0, 0);
-      else if (lane == 2 || lane == 4 || lane == 6)
-        set_LED(xy(lane, curr), 0, 0, 255);
-      else
-        set_LED(xy(lane, curr), 255, 255, 255);
-      if (curr != top) 
-        set_LED(xy(lane, curr+1), 0, 0, 0);
-      if (curr == 0) {
-        set_LED(xy(lane, curr), 255, 0, 0);
-        lane = rand() % 8;
-        curr = top;
-      }
-      curr--;
-    }
-    set_brightness(1);
-    send_LED();
+    audio_update();
     read_input_buffer();
-    HAL_Delay(50);
 
     /* USER CODE END WHILE */
 
