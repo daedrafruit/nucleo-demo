@@ -29,7 +29,6 @@
 /* USER CODE BEGIN Includes */
 //#include "sd.h"
 #include <stdint.h>
-#include <stdlib.h>
 
 #include "led.h"
 #include "input.h"
@@ -107,22 +106,15 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   sd_init();
-  HAL_TIM_OC_Start_IT(&htim2, TIM_CHANNEL_1);
+  audio_set_rate(32000);
+  audio_init();
+  init_input_buffer();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  //HAL_I2S_Transmit_DMA(&hi2s2, (uint16_t *)Amen_Brother_Mono_136_raw, amen_len);
-
-
-  //sd_dump_block(0);
-  
-  audio_init();
-  audio_set_rate(16000);
   while (1) {
-
-    audio_update();
     read_input_buffer();
 
     /* USER CODE END WHILE */
