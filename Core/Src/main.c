@@ -21,6 +21,7 @@
 #include "dma.h"
 #include "i2s.h"
 #include "spi.h"
+#include "stm32f4xx_hal.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -106,15 +107,66 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   sd_init();
+  init_input_buffer();
   audio_set_rate(32000);
   audio_init();
-  init_input_buffer();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  #define FRAME_SIZE 19
+  #define NUM_ROWS 32
+  uint8_t rows[NUM_ROWS];
+  for (int i = 0; i < NUM_ROWS; i++) rows[i] = 0;
+  rows[0] = 0b10000000;
+  rows[2] = 0b01000000;
+  rows[4] = 0b00010000;
+  rows[6] = 0b00000100;
+  rows[8] = 0b00000001;
+  rows[10] = 0b00000100;
+  rows[12] = 0b00010000;
+  rows[14] = 0b00100000;
+  rows[15] = 0b00001000;
+  rows[16] = 0b10001001;
+  rows[19] = 0b00100110;
+  rows[20] = 0b01000000;
+  rows[22] = 0b00010001;
+  rows[23] = 0b00000100;
+  rows[24] = 0b10000000;
+  rows[26] = 0b00100000;
+  rows[27] = 0b00001000;
+  rows[28] = 0b00000010;
+  rows[30] = 0b00010001;
+  uint8_t base = 0;
+  
+  for (int i = 0; i < 8; i++) {
+    set_LED(xy(i, 0), 255, 0, 0);
+  }
   while (1) {
+    //TODO: bug, final row is not properly cleared
+    for (int i = 1; i < FRAME_SIZE; i++) {
+      if ((base + i) >= NUM_ROWS) continue;
+      for (int j = 0; j < 7; j++) {
+        set_LED(xy(7-j, i), 0, 0, 0);
+        if (rows[base + i] >> j & 1)
+          //reverse for endianness
+          set_LED(xy(7-j, i), 0, 0, 255);
+      }
+      //first col always red
+      set_LED(xy(0, i), 0, 0, 0);
+      if (rows[base + i] >> 7 & 1)
+        set_LED(xy(0, i), 255, 0, 0);
+    }
+    base++;
+    if (base >= NUM_ROWS) {
+      base = 0;
+    }
+
+    set_brightness(1);
+    send_LED();
+    HAL_Delay(75);
+
     read_input_buffer();
 
     /* USER CODE END WHILE */
