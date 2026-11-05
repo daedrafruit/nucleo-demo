@@ -63,10 +63,8 @@ void send_LED() {
   data_sent_flag = 0;
 
 }
-
 int xy(int x, int y) {
   if (y & 1)
-    return y * WIDTH + (WIDTH - 1 - x);
-  else
-    return y * WIDTH + x;
+    return (WIDTH - 1 - x) + (y * WIDTH);
+  return x + (y * WIDTH);
 }
