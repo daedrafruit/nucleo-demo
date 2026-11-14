@@ -2,6 +2,7 @@
 #include "spi.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 static int bit_len(uint64_t x) {
   int n = 0;
@@ -180,6 +181,7 @@ int sd_write(uint32_t address, const void* data, uint16_t length) {
 #define SD_READ_TIMEOUT_MS 100
 
 int sd_read(uint32_t address, uint8_t* buffer, uint16_t buffer_size) {
+    if (buffer_size < 512) return 4;
     uint8_t r1 = sd_cmd(17, address);
     if (r1 != 0x00) return 1;
 
@@ -191,13 +193,9 @@ int sd_read(uint32_t address, uint8_t* buffer, uint16_t buffer_size) {
     } while (token == 0xFF);
     if (token != 0xFE) return 3;
 
-    for (uint16_t i = 0; i < 512; i++) {
-      uint8_t r_byte = spi_xfer(0xFF);
-
-      if (i < buffer_size) {
-        buffer[i] = r_byte;
-      }
-    }
+    //read whole block
+    memset(buffer, 0xFF, 512);
+    HAL_SPI_Receive(&hspi1, buffer, 512, 100);
 
     //dummy crc
     spi_xfer(0xFF);
