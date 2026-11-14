@@ -102,6 +102,8 @@ int sd_dump_block(uint32_t block) {
   return 0;
 }
 
+#define SD_INIT_TIMEOUT_MS 1000
+
 int sd_init(void) {
   uint8_t r1;
 
@@ -114,6 +116,7 @@ int sd_init(void) {
   printf("CMD0 Response:\n");
   print_r1(r1);
   printf("\n");
+  if (r1 != 0x01) return 1;
 
   r1 = sd_cmd(8, 0x1AA);
   printf("CMD8 Response:\n");
@@ -122,10 +125,13 @@ int sd_init(void) {
   printf("\n");
 
   printf("Initializing...\n");
+  uint32_t start = HAL_GetTick();
   do {
     sd_cmd(55, 0);
     r1 = sd_cmd(41, 1 << 30);
+    if (HAL_GetTick() - start > SD_INIT_TIMEOUT_MS) return 2;
   } while (r1 == 0x01);
+  if (r1 != 0x00) return 3;
 
   sd_cmd(58, 0);
   uint32_t r3 = sd_read32();
@@ -171,12 +177,19 @@ int sd_write(uint32_t address, const void* data, uint16_t length) {
   return 0;
 }
 
-int sd_read(uint32_t address, uint8_t* buffer, uint16_t buffer_size) {
-    uint8_t r1;
-    r1 = sd_cmd(17, address);
+#define SD_READ_TIMEOUT_MS 100
 
-    // keep receiving bytes until the data token
-    while (spi_xfer(0xFF) != 0xFE);
+int sd_read(uint32_t address, uint8_t* buffer, uint16_t buffer_size) {
+    uint8_t r1 = sd_cmd(17, address);
+    if (r1 != 0x00) return 1;
+
+    uint32_t start = HAL_GetTick();
+    uint8_t token;
+    do {
+      token = spi_xfer(0xFF);
+      if (HAL_GetTick() - start > SD_READ_TIMEOUT_MS) return 2;
+    } while (token == 0xFF);
+    if (token != 0xFE) return 3;
 
     for (uint16_t i = 0; i < 512; i++) {
       uint8_t r_byte = spi_xfer(0xFF);

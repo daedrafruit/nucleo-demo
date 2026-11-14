@@ -28,8 +28,12 @@ static void fill_half(int half) {
   uint8_t *dst = (uint8_t *)&buf[half * HALF_LEN];
   memset(dst, 0, BLOCK_SIZE);
   if (!playing) return;
-  if (block < end)
-    sd_read(block++, dst, BLOCK_SIZE);
+  if (block < end && sd_read(block++, dst, BLOCK_SIZE) != 0) {
+    //give up on this slice if read fails
+    memset(dst, 0, BLOCK_SIZE);
+    playing = 0;
+    return;
+  }
   if (block >= end) playing = 0;
 }
 

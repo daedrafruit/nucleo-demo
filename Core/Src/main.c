@@ -30,6 +30,7 @@
 /* USER CODE BEGIN Includes */
 //#include "sd.h"
 #include <stdint.h>
+#include <stdio.h>
 
 #include "led.h"
 #include "input.h"
@@ -133,7 +134,8 @@ int main(void)
   MX_TIM2_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  sd_init();
+  if (sd_init() != 0) 
+    printf("ERROR: SD init failed\n");
   init_input_buffer();
   audio_set_rate(16000);
   audio_init();
