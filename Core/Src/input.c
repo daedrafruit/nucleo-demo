@@ -53,13 +53,6 @@ void read_input_buffer() {
   }
 }
 
-void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
-  if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
-    TIM2->CCR1 = TIM2->CNT + 84000;
-    load_input_buffer();
-  }
-}
-
 void init_input_buffer() {
   HAL_TIM_OC_Start_IT(&htim2, TIM_CHANNEL_1);
 }

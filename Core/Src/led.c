@@ -20,13 +20,19 @@ void set_LED(int LED_num, int r, int g, int b) {
 
 void set_brightness(int brightness) {
   if (brightness > 45) brightness = 45;
+
+  //scale = 1/tan(90* - b) = tan(b); recomputes when brightness changes
+  static int last_brightness = -1;
+  static float scale;
+  if (brightness != last_brightness) {
+    scale = tanf(brightness * (float)M_PI / 180.0f);
+    last_brightness = brightness;
+  }
+
   for (int i = 0; i < MAX_LED; i++) {
     LED_Mod[i][0] = LED_Data[i][0];
-    for (int j = 1; j < 4; j++) {
-      float angle = 90-brightness;
-      angle = angle * M_PI /180;
-      LED_Mod[i][j] = (LED_Data[i][j] / (tan(angle)));
-    }
+    for (int j = 1; j < 4; j++)
+      LED_Mod[i][j] = (uint8_t)(LED_Data[i][j] * scale);
   }
 }
 

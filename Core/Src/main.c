@@ -67,6 +67,33 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+#define FRAME_SIZE 19
+#define NUM_ROWS 32
+uint32_t rows[NUM_ROWS];
+uint8_t base = 0;
+static volatile uint8_t display_due = 0;
+
+//TODO: bug, final row is not properly cleared
+void update_display() {
+  for (int i = 1; i < FRAME_SIZE; i++) {
+  if ((base + i) >= NUM_ROWS) continue;
+  for (int j = 0; j < 7; j++) {
+    set_LED(xy(7-j, i), 0, 0, 0);
+    if (rows[base + i] >> j & 1)
+      //reverse for endianness
+      set_LED(xy(7-j, i), 0, 0, 255);
+  }
+  //first col always red
+  set_LED(xy(0, i), 0, 0, 0);
+  if (rows[base + i] >> 7 & 1)
+    set_LED(xy(0, i), 255, 0, 0);
+  }
+  base++;
+  if (base >= NUM_ROWS) {
+    base = 0;
+  }
+}
+
 
 /* USER CODE END 0 */
 
@@ -108,16 +135,13 @@ int main(void)
   /* USER CODE BEGIN 2 */
   sd_init();
   init_input_buffer();
-  audio_set_rate(32000);
+  audio_set_rate(16000);
   audio_init();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  #define FRAME_SIZE 19
-  #define NUM_ROWS 32
-  uint8_t rows[NUM_ROWS];
   for (int i = 0; i < NUM_ROWS; i++) rows[i] = 0;
   rows[0] = 0b10000000;
   rows[2] = 0b01000000;
@@ -138,34 +162,17 @@ int main(void)
   rows[27] = 0b00001000;
   rows[28] = 0b00000010;
   rows[30] = 0b00010001;
-  uint8_t base = 0;
   
   for (int i = 0; i < 8; i++) {
     set_LED(xy(i, 0), 255, 0, 0);
   }
   while (1) {
-    //TODO: bug, final row is not properly cleared
-    for (int i = 1; i < FRAME_SIZE; i++) {
-      if ((base + i) >= NUM_ROWS) continue;
-      for (int j = 0; j < 7; j++) {
-        set_LED(xy(7-j, i), 0, 0, 0);
-        if (rows[base + i] >> j & 1)
-          //reverse for endianness
-          set_LED(xy(7-j, i), 0, 0, 255);
-      }
-      //first col always red
-      set_LED(xy(0, i), 0, 0, 0);
-      if (rows[base + i] >> 7 & 1)
-        set_LED(xy(0, i), 255, 0, 0);
+    if (display_due) {
+      display_due = 0;
+      update_display();
+      set_brightness(1);
+      send_LED();
     }
-    base++;
-    if (base >= NUM_ROWS) {
-      base = 0;
-    }
-
-    set_brightness(1);
-    send_LED();
-    HAL_Delay(75);
 
     read_input_buffer();
 
@@ -224,6 +231,19 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+static uint8_t display_ticks = 0;
+void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
+  if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
+    TIM2->CCR1 = TIM2->CNT + 84000;
+    if (++display_ticks >= 75) {
+      display_ticks = 0;
+      display_due = 1;
+    }
+
+    load_input_buffer();
+  }
+}
+
 int _write(int fd, char *ptr, int len) {
     HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
     return len;

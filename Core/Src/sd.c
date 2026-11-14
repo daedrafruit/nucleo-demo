@@ -132,7 +132,7 @@ int sd_init(void) {
   if (r3 >> 30 & 1) printf("SDHC/SDXC Ready...\n");
   else              printf("SDSC Ready...\n");
   printf("\n");
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;   // use your SD's SPI handle
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_8;
   HAL_SPI_Init(&hspi1);
 
   return 0;
