@@ -31,6 +31,7 @@
 //#include "sd.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <sys/_intsup.h>
 
 #include "led.h"
 #include "input.h"
@@ -57,7 +58,29 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+typedef struct {
+  uint32_t time;
+  uint8_t lanes;
+} note_t;
 
+note_t rows[] = {
+  {75, 0b11111111},
+  {150, 0b01000000},
+  {300, 0b00010000},
+  {600, 0b00000100},
+  {825, 0b00000001},
+  {975, 0b00000100},
+  {1350, 0b00010000},
+  {1650, 0b00100000},
+  {1875, 0b00001000},
+  {2100, 0b10001001},
+  {2475, 0b00100110},
+  {2700, 0b01000000},
+  {3150, 0b00010001},
+  {3450, 0b00000100},
+  {4050, 0b10000000},
+  {4200, 0b00100000},
+};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,29 +92,35 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 #define FRAME_SIZE 19
-#define NUM_ROWS 32
-uint32_t rows[NUM_ROWS];
+#define SCROLL_SPEED 75
+uint32_t time_frame = FRAME_SIZE * SCROLL_SPEED;
 uint8_t base = 0;
 static volatile uint8_t display_due = 0;
+uint32_t num_rows = sizeof(rows) / sizeof(rows[0]);
+uint32_t chart_time;
 
 //TODO: bug, final row is not properly cleared
 void update_display() {
+  //skip first row (red bar)
   for (int i = 1; i < FRAME_SIZE; i++) {
-  if ((base + i) >= NUM_ROWS) continue;
-  for (int j = 0; j < 7; j++) {
-    set_LED(xy(7-j, i), 0, 0, 0);
-    if (rows[base + i] >> j & 1)
-      //reverse for endianness
-      set_LED(xy(7-j, i), 0, 0, 255);
+    for (int j = 0; j <= 7; j++) {
+      set_LED(xy(j, i), 0, 0, 0);
+    }
   }
-  //first col always red
-  set_LED(xy(0, i), 0, 0, 0);
-  if (rows[base + i] >> 7 & 1)
-    set_LED(xy(0, i), 255, 0, 0);
-  }
-  base++;
-  if (base >= NUM_ROWS) {
-    base = 0;
+
+  for (int i = 0; i < num_rows; i++) {
+
+    uint8_t y_pos = (rows[i].time - chart_time) / SCROLL_SPEED;
+    if (y_pos >= FRAME_SIZE || y_pos < 1) continue;
+
+    for (int j = 0; j < 7; j++) {
+      if (rows[i].lanes >> j & 1)
+        //reverse for endianness
+        set_LED(xy(7-j, y_pos), 0, 0, 255);
+    }
+    //first col always red
+    if (rows[i].lanes >> 7 & 1)
+      set_LED(xy(0, y_pos), 255, 0, 0);
   }
 }
 
@@ -144,26 +173,6 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  for (int i = 0; i < NUM_ROWS; i++) rows[i] = 0;
-  rows[0] = 0b10000000;
-  rows[2] = 0b01000000;
-  rows[4] = 0b00010000;
-  rows[6] = 0b00000100;
-  rows[8] = 0b00000001;
-  rows[10] = 0b00000100;
-  rows[12] = 0b00010000;
-  rows[14] = 0b00100000;
-  rows[15] = 0b00001000;
-  rows[16] = 0b10001001;
-  rows[19] = 0b00100110;
-  rows[20] = 0b01000000;
-  rows[22] = 0b00010001;
-  rows[23] = 0b00000100;
-  rows[24] = 0b10000000;
-  rows[26] = 0b00100000;
-  rows[27] = 0b00001000;
-  rows[28] = 0b00000010;
-  rows[30] = 0b00010001;
   
   for (int i = 0; i < 8; i++) {
     set_LED(xy(i, 0), 255, 0, 0);
@@ -171,6 +180,7 @@ int main(void)
   while (1) {
     if (display_due) {
       display_due = 0;
+      if (chart_time >= rows[num_rows - 1].time) chart_time = 0;
       update_display();
       set_brightness(1);
       send_LED();
@@ -238,6 +248,7 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
   if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
     TIM2->CCR1 = TIM2->CNT + 84000;
     if (++display_ticks >= 75) {
+      chart_time += display_ticks;
       display_ticks = 0;
       display_due = 1;
     }
