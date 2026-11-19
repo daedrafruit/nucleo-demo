@@ -102,25 +102,28 @@ uint32_t chart_time;
 //TODO: bug, final row is not properly cleared
 void update_display() {
   //skip first row (red bar)
-  for (int i = 1; i < FRAME_SIZE; i++) {
-    for (int j = 0; j <= 7; j++) {
+  for (int i = 1; i < FRAME_SIZE; i++)
+    for (int j = 0; j <= 7; j++)
       set_LED(xy(j, i), 0, 0, 0);
-    }
-  }
 
   for (int i = 0; i < num_rows; i++) {
 
     uint8_t y_pos = (rows[i].time - chart_time) / SCROLL_SPEED;
     if (y_pos >= FRAME_SIZE || y_pos < 1) continue;
 
-    for (int j = 0; j < 7; j++) {
-      if (rows[i].lanes >> j & 1)
-        //reverse for endianness
-        set_LED(xy(7-j, y_pos), 0, 0, 255);
-    }
     //first col always red
     if (rows[i].lanes >> 7 & 1)
       set_LED(xy(0, y_pos), 255, 0, 0);
+
+    for (int j = 0; j < 7; j++)
+      if (rows[i].lanes >> j & 1)
+        //reverse for endianness
+        if (j & 1)
+          set_LED(xy(7-j, y_pos), 0, 0, 255);
+        else
+          set_LED(xy(7-j, y_pos), 255, 255, 255);
+
+
   }
 }
 
@@ -246,8 +249,11 @@ void SystemClock_Config(void)
 static uint8_t display_ticks = 0;
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
   if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
+    // 1ms at 84MHz
     TIM2->CCR1 = TIM2->CNT + 84000;
-    if (++display_ticks >= 75) {
+
+    // ~30 fps
+    if (++display_ticks >= 33) {
       chart_time += display_ticks;
       display_ticks = 0;
       display_due = 1;
@@ -258,8 +264,8 @@ void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
 }
 
 int _write(int fd, char *ptr, int len) {
-    HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
-    return len;
+  HAL_UART_Transmit(&huart2, (uint8_t*)ptr, len, HAL_MAX_DELAY);
+  return len;
 }
 
 /* USER CODE END 4 */
