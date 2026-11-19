@@ -12,6 +12,7 @@ static uint16_t pwm_data[24*MAX_LED+50];
 static uint8_t period = 105-1;
 
 void set_LED(int LED_num, int r, int g, int b) {
+  if (LED_num < 0 || LED_num >= MAX_LED) return;
   LED_Data[LED_num][0] = LED_num;
   LED_Data[LED_num][1] = g;
   LED_Data[LED_num][2] = r;
