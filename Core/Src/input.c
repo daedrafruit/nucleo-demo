@@ -27,16 +27,18 @@ uint8_t dequeue(uint16_t *x) {
 uint32_t last_time[9];
 uint8_t debounce_delay = 5;
 uint8_t btn_state[9];
+uint32_t btn_time_stamp[9];
 uint8_t last_state[9];
 uint8_t curr_state[9];
 
 //TODO: play audio immediately for low latency feel, queue input with timestamp for later timing processing
-void load_input_buffer() {
+void load_input_buffer(uint32_t chart_time) {
   uint32_t now = HAL_GetTick();
   for (int i = 0; i < 9; i++) {
     uint8_t curr = ~(GPIOC->IDR) >> i & 1;
     if (curr != btn_state[i] && now - last_time[i] > debounce_delay) {
       btn_state[i] = curr;
+      btn_time_stamp[i] = chart_time;
       last_time[i] = now;
       if (curr == 1)
         enqueue(i + 1);

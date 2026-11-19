@@ -64,9 +64,9 @@ typedef struct {
 } note_t;
 
 note_t rows[] = {
-  {75, 0b11111111},
-  {150, 0b01000000},
-  {300, 0b00010000},
+  {300, 0b11111111},
+  {375, 0b01000000},
+  {450, 0b00010000},
   {600, 0b00000100},
   {825, 0b00000001},
   {975, 0b00000100},
@@ -95,9 +95,15 @@ void SystemClock_Config(void);
 #define SCROLL_SPEED 75
 uint32_t time_frame = FRAME_SIZE * SCROLL_SPEED;
 uint8_t base = 0;
-static volatile uint8_t display_due = 0;
+#define FRAME_MS 33
 uint32_t num_rows = sizeof(rows) / sizeof(rows[0]);
 uint32_t chart_time;
+uint32_t song_start;
+
+// ms since song start, looping at the last note
+uint32_t get_chart_time() {
+  return (HAL_GetTick() - song_start) % rows[num_rows - 1].time;
+}
 
 //TODO: bug, final row is not properly cleared
 void update_display() {
@@ -107,6 +113,7 @@ void update_display() {
       set_LED(xy(j, i), 0, 0, 0);
 
   for (int i = 0; i < num_rows; i++) {
+    if (rows[i].time < chart_time) continue;
 
     uint8_t y_pos = (rows[i].time - chart_time) / SCROLL_SPEED;
     if (y_pos >= FRAME_SIZE || y_pos < 1) continue;
@@ -122,8 +129,6 @@ void update_display() {
           set_LED(xy(7-j, y_pos), 0, 0, 255);
         else
           set_LED(xy(7-j, y_pos), 255, 255, 255);
-
-
   }
 }
 
@@ -180,10 +185,12 @@ int main(void)
   for (int i = 0; i < 8; i++) {
     set_LED(xy(i, 0), 255, 0, 0);
   }
+  song_start = HAL_GetTick();
+  uint32_t last_frame = song_start;
   while (1) {
-    if (display_due) {
-      display_due = 0;
-      if (chart_time >= rows[num_rows - 1].time) chart_time = 0;
+    if (HAL_GetTick() - last_frame >= FRAME_MS) {
+      last_frame += FRAME_MS;
+      chart_time = get_chart_time();
       update_display();
       set_brightness(1);
       send_LED();
@@ -246,20 +253,13 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-static uint8_t display_ticks = 0;
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef *htim) {
   if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
     // 1ms at 84MHz
     TIM2->CCR1 = TIM2->CNT + 84000;
 
-    // ~30 fps
-    if (++display_ticks >= 33) {
-      chart_time += display_ticks;
-      display_ticks = 0;
-      display_due = 1;
-    }
 
-    load_input_buffer();
+    load_input_buffer(get_chart_time());
   }
 }
 
