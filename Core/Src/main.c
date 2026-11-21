@@ -195,8 +195,14 @@ int main(void)
       set_brightness(1);
       send_LED();
     }
-
-    read_input_buffer();
+    
+    input_event_t e;
+    while(poll_input_event(&e)) {
+      //TODO: lanes start count at 1 (0 means no event), this system needs to be improved
+      if (e.lane > 0) {
+        play_audio(e.lane - 1);
+      }
+    }
 
     /* USER CODE END WHILE */
 
